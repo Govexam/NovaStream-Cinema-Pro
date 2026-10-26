@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaStream Cinema Pro - Live TV &amp; EPG Schedule</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- HLS.js for Live Stream Playback -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
+
+  <!-- App Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast-msg" id="toastMsg">Notification</div>
+
+  <!-- TOP APP HEADER -->
+  <header class="top-header">
+    
+    <!-- Brand -->
+    <div class="brand-group" onclick="filterCategory('ALL')">
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#050811" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </div>
+      <div>
+        <span class="brand-title">NOVASTREAM</span>
+        <span class="brand-badge">CINEMA PRO</span>
+      </div>
+      <div class="live-pulse">
+        <span class="pulse-dot"></span>
+        <span>LIVE</span>
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="header-search">
+      <span class="search-icon-left">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input type="text" id="channelSearchInput" class="search-input" placeholder="Search Star Sports, Sony Max, Aaj Tak, Serials..." autocomplete="off">
+      <span class="search-shortcut-badge">/</span>
+      <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()">✕</button>
+    </div>
+
+    <!-- Header Tools & Clock -->
+    <div class="header-actions">
+      <div class="clock-badge" id="liveClockDisplay">
+        <span style="color:#00f260;">●</span>
+        <span id="liveClockText">--:--:-- --</span>
+      </div>
+
+      <button class="icon-btn" onclick="openVlcGuideModal()" title="Play in VLC / Direct Stream Info">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
+
+      <button class="icon-btn" onclick="openFullEpgModal()" title="Full 24-Hour TV Schedule">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </button>
+    </div>
+
+  </header>
+
+  <!-- MAIN CINEMA LAYOUT -->
+  <main class="main-layout">
+
+    <!-- LEFT PANE: VIDEO PLAYER & LIVE SHOW SCHEDULE -->
+    <section class="left-pane">
+
+      <!-- 1. CINEMA VIDEO PLAYER BOX -->
+      <div class="player-cinema-box" id="playerBox">
+        <video id="videoPlayer" playsinline></video>
+
+        <!-- Spinner & Buffer Overlay -->
+        <div class="video-overlay-spinner" id="videoSpinner">
+          <div class="spinner-circle"></div>
+          <div class="spinner-text" id="spinnerText">Connecting to Live Feed...</div>
+        </div>
+
+        <!-- On-Screen Display (OSD) -->
+        <div class="player-osd" id="playerOsd">
+          <div class="osd-channel-badge">
+            <img id="osdLogo" class="osd-logo" src="" alt="Channel Logo">
+            <div class="osd-title-group">
+              <div class="osd-name" id="osdChannelName">Loading Channel...</div>
+              <div class="osd-meta">
+                <span id="osdCategoryBadge">Category</span>
+                <span class="quality-badge" id="osdQualityBadge">4K UHD</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="osd-right-actions">
+            <button class="osd-quick-btn" onclick="copyCurrentStreamUrl()">
+              📋 Copy Link
+            </button>
+            <button class="osd-quick-btn" onclick="openVlcGuideModal()">
+              🚀 VLC
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Player Controls Bar -->
+        <div class="player-controls-bar" id="playerControlsBar">
+          <div class="controls-left">
+            <button class="ctrl-btn ctrl-btn-accent" id="playBtn" onclick="togglePlay()" title="Play / Pause">
+              <svg id="playIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <svg id="pauseIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+
+            <!-- Channel Prev / Next Zapping -->
+            <button class="ctrl-btn" onclick="zapChannel(-1)" title="Previous Channel (Down)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+            <button class="ctrl-btn" onclick="zapChannel(1)" title="Next Channel (Up)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+
+            <!-- Volume Slider -->
+            <div class="volume-group">
+              <button class="ctrl-btn" onclick="toggleMute()" title="Mute / Unmute">
+                <svg id="volIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </button>
+              <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
+            </div>
+          </div>
+
+          <div class="controls-right">
+            <!-- Audio Boost -->
+            <button class="ctrl-btn" id="audioBoostBtn" onclick="toggleAudioBoost()" title="Audio Boost (200%)" style="font-size:11px;font-weight:800;color:var(--accent-cyan);">
+              100%
+            </button>
+
+            <!-- Aspect Ratio -->
+            <button class="ctrl-btn" onclick="toggleAspectRatio()" title="Aspect Ratio (16:9 / Fill / 4:3)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M7 15h10"/></svg>
+            </button>
+
+            <!-- Picture-in-Picture -->
+            <button class="ctrl-btn" onclick="togglePiP()" title="Picture-in-Picture">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="10" width="8" height="8" rx="1"/></svg>
+            </button>
+
+            <!-- Fullscreen -->
+            <button class="ctrl-btn" onclick="toggleFullscreen()" title="Fullscreen (F)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><polyline points="21 15 21 21 15 21"/><polyline points="3 9 3 3 9 3"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. EPG SCHEDULE CARD ("Ye Itna Time Me Aayega") -->
+      <div class="epg-schedule-card">
+        
+        <div class="epg-header-row">
+          <div class="epg-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Electronic Program Guide (EPG Schedule)
+          </div>
+          <button class="view-full-schedule-btn" onclick="openFullEpgModal()">
+            📅 View Full 24H Schedule
+          </button>
+        </div>
+
+        <!-- NOW ON AIR -->
+        <div class="now-playing-banner">
+          <div class="now-tag-row">
+            <span class="now-badge">
+              <span class="pulse-dot" style="background:#032015;"></span>
+              ON AIR NOW
+            </span>
+            <span class="now-time-range" id="nowTimeRange">--:-- AM - --:-- PM</span>
+          </div>
+
+          <div class="now-show-title" id="nowShowTitle">Loading Program Information...</div>
+          <div class="now-show-desc" id="nowShowDesc">Program synopsis and episode details will appear here.</div>
+
+          <!-- Live Progress Bar -->
+          <div class="live-progress-container">
+            <div class="progress-track">
+              <div class="progress-fill" id="nowProgressFill"></div>
+            </div>
+            <div class="progress-labels">
+              <span id="nowStartLabel">--:-- AM</span>
+              <span class="progress-remaining" id="nowRemainingLabel">-- min left</span>
+              <span id="nowEndLabel">--:-- PM</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- UPCOMING SHOWS ("Ye Itna Time Me Aayega") -->
+        <div>
+          <div class="upcoming-section-title">
+            <span>🕒 UPCOMING NEXT ON THIS CHANNEL:</span>
+          </div>
+          <div class="upcoming-timeline-grid" id="upcomingGrid" style="margin-top:10px;">
+            <!-- Dynamically populated upcoming items -->
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANE: CHANNEL GUIDE & CATEGORIES -->
+    <aside class="right-pane">
+      
+      <div class="guide-header">
+        <div class="guide-title-row">
+          <div class="guide-heading">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+            Channel Guide
+          </div>
+          <span class="channel-total-badge" id="channelCountBadge">23 Channels</span>
+        </div>
+
+        <!-- Category Pills -->
+        <div class="category-pills-row" id="categoryPills">
+          <button class="cat-pill active" onclick="filterCategory('ALL')">🌟 All</button>
+          <button class="cat-pill" onclick="filterCategory('Sports')">🏏 Sports</button>
+          <button class="cat-pill" onclick="filterCategory('Movies')">🎬 Movies</button>
+          <button class="cat-pill" onclick="filterCategory('Entertainment')">📺 Serials</button>
+          <button class="cat-pill" onclick="filterCategory('News')">📰 News</button>
+          <button class="cat-pill" onclick="filterCategory('Music')">🎵 Music</button>
+          <button class="cat-pill" onclick="filterCategory('Devotional')">🙏 Devotion</button>
+        </div>
+      </div>
+
+      <!-- Channel Cards Scrollable List -->
+      <div class="channel-list-scroll" id="channelListScroll">
+        <!-- Dynamically injected channel cards -->
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- 1. FULL 24-HOUR EPG SCHEDULE MODAL -->
+  <div class="modal-overlay" id="fullEpgModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="fullEpgModalTitle">24-Hour Schedule</div>
+        <button class="modal-close-btn" onclick="closeFullEpgModal()">✕</button>
+      </div>
+      <div class="modal-body" id="fullEpgModalBody">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. VLC & DIRECT STREAM INFO MODAL -->
+  <div class="modal-overlay" id="vlcGuideModal">
+    <div class="modal-content" style="max-width:560px;">
+      <div class="modal-header">
+        <div class="modal-title">🚀 Play in VLC / External Player</div>
+        <button class="modal-close-btn" onclick="closeVlcGuideModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:14px;color:var(--text-secondary);line-height:1.5;">
+          Direct M3U8 stream links can be played on <strong>VLC Player</strong>, <strong>MX Player</strong>, <strong>PotPlayer</strong>, or <strong>Smart TV</strong> without any browser buffering or CORS limits:
+        </p>
+
+        <div style="background:rgba(0,0,0,0.5);border:1px solid var(--border-glass);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:11px;font-weight:700;color:var(--accent-cyan);">ACTIVE STREAM LINK (M3U8):</div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:#38ef7d;word-break:break-all;" id="vlcModalStreamUrl">Loading...</div>
+          <button class="osd-quick-btn" style="align-self:flex-start;margin-top:4px;" onclick="copyCurrentStreamUrl()">📋 Copy Stream Link</button>
+        </div>
+
+        <div style="font-size:13px;color:var(--text-muted);display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+          <div><strong>PC par VLC me chalane ke liye:</strong></div>
+          <div>1. VLC Player kholein aur keyboard par <code>Ctrl + N</code> dabayein.</div>
+          <div>2. Upar wala link paste karke <strong>Play</strong> dabayein!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Database & Logic Scripts -->
+  <script src="channels.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

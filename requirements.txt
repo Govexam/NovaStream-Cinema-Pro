@@ -1,0 +1,3 @@
+# NovaStream Cinema Pro
+# Powered entirely by Python Standard Library (No pip dependencies needed)
+# Compatible with Python 3.8+
